@@ -1,0 +1,75 @@
+---
+
+###
+### JELLYFIN
+###
+
+- name: Create transcode directory
+  ansible.builtin.file:
+    path: /dev/shm/jellyfin
+    state: directory
+    owner: abc
+    group: abc
+    mode: 0775
+        
+- name: Create Jellyfin service directories
+  ansible.builtin.file:
+    path: "{{ item }}/jellyfin"
+    state: directory
+  loop:
+    - "{{ ansible_user_configdir }}"
+    - "{{ ansible_user_cachedir }}"
+
+- name: Create Jellyfin Service
+  containers.podman.podman_container:
+    name: "jellyfin"
+    image: lscr.io/linuxserver/jellyfin:10.8.1-1-ls167
+    state: started
+    recreate: true
+    user: root
+    device:
+      - /dev/dri:/dev/dri      
+    ports:
+      - "8096:8096"
+    volume:
+      - "{{ ansible_user_configdir }}/jellyfin:/config:Z"
+      - "{{ ansible_user_cachedir }}/jellyfin:/cache:Z"
+      - "{{ media_share }}:/data:ro"
+      - "/dev/shm/jellyfin:/transcodes:rw"
+    env:
+      TZ: America/Detroit
+      PUID: 1000
+      PGID: 1000
+
+- name: Pause to allow service to start
+  ansible.builtin.pause:
+    seconds: 15
+
+###
+### JELLYFIN ACCOUNTS MANAGEMENT
+###
+
+- name: Create JFA-Go service directories
+  ansible.builtin.file:
+    path: "{{ item }}/jfa-go"
+    state: directory
+  loop:
+    - "{{ ansible_user_configdir }}"
+    - "{{ ansible_user_cachedir }}"
+
+- name: Start JFA-Go Service
+  containers.podman.podman_container:
+    name: "jellyfin-jfa-go"
+    image: docker.io/hrfee/jfa-go
+    state: started
+    recreate: true
+    user: root
+    ports:
+      - "8056:8056"
+    volume:
+      - "{{ ansible_user_configdir }}/jfa-go:/jfago_config:Z"
+      - "/etc/localtime:/etc/localtime:ro"
+    command:
+      - /opt/jfa-go/jfa-go
+      - '-data'
+      - '/jfago_config'

@@ -1,0 +1,6 @@
+# Hosts
+desktop1.local ansible_host=192.168.4.245
+
+# Groups
+[container_host]
+desktop1.local

@@ -1,0 +1,22 @@
+---
+
+- name: Create config directory
+  ansible.builtin.file:
+    path: "{{ ansible_user_configdir }}/ersatztv"
+    state: directory
+
+- name: Start ErsatzTV Service
+  containers.podman.podman_container:
+    name: ersatztv
+    image: docker.io/jasongdove/ersatztv:latest-vaapi
+    state: started
+    recreate: true
+    user: root
+    ports:
+      - "8409:8409"
+    device:
+      - /dev/dri:/dev/dri
+    volume:
+      - "{{ ansible_user_configdir }}/ersatztv:/root/.local/share/ersatztv:Z"
+    env:
+      TZ: America/Detroit

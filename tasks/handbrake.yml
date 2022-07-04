@@ -1,0 +1,29 @@
+---
+
+- name: Set number of handbrake containers to create
+  ansible.builtin.set_fact:
+    hb_number: "{{ number | default(2) }}"
+
+- name: Create config directory
+  ansible.builtin.file:
+    path: "{{ ansible_user_configdir }}/handbrake{{ item }}"
+    state: directory
+  with_sequence: start=1 end={{ hb_number }}
+
+- name: Start HandBrake Services
+  containers.podman.podman_container:
+    name: "handbrake{{ item }}"
+    image: docker.io/jlesage/handbrake
+    state: started
+    recreate: true
+    user: root
+    ports:
+      - "590{{ item }}:5900"
+    volume:
+      - "{{ ansible_user_configdir }}/handbrake{{ item }}:/config:Z"
+      - "{{ media_share }}:/storage:ro"
+      - "{{ handbrake_share }}:/output"
+    env:
+      TZ: America/Detroit
+      VNC_PASSWORD: LoveBing
+  with_sequence: start=1 end={{ hb_number }}

@@ -1,0 +1,23 @@
+---
+
+- name: Container Host Services
+  hosts: container_host
+  gather_facts: true
+  become: false
+
+  vars_prompt:
+    - name: start_services
+      prompt: Start Services (comma-separated)
+      private: false
+
+  tasks:
+    - name: Create service lists
+      ansible.builtin.set_fact:
+        _start_services: "{{ start_services.split(',') | list }}"
+
+    - name: Start services
+      ansible.builtin.include_tasks: "tasks/{{ main_loop_item }}.yml"
+      loop: "{{ _start_services }}"
+      loop_control:
+        loop_var: main_loop_item
+      when: _start_services|length != 0

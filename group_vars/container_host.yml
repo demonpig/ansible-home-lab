@@ -1,0 +1,10 @@
+---
+
+ansible_user: abc
+ansible_user_homedir: /home/abc
+ansible_user_configdir: /home/abc/.config/
+ansible_user_cachedir: /home/abc/.cache/
+
+# Network Shares
+media_share: /mnt/media
+handbrake_share: /mnt/handbrake
