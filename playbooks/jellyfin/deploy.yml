@@ -1,0 +1,4 @@
+---
+
+- name: Deploy Jellyfin Container to Host System
+  hosts: container_host

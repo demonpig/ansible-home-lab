@@ -1,0 +1,23 @@
+---
+
+- name: Backup Jellyfin Application
+  hosts: all
+
+  tasks:
+    - name: Stop jellyfin to perform backup
+      ansible.builtin.service:
+        name: jellyfin
+        state: stopped
+
+    - name: Perform backup using script
+      ansible.builtin.script:
+        name: backup-jellyfin-script.sh
+      register: backup_name
+      timeout: 120
+
+    - name: Copy backup to backup destination
+      ansible.builtin.synchronize:
+        src: backup_name.result.path
+        dest: /backup/
+      delegate_to: "{{ server }}"
+      
