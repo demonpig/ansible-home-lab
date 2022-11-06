@@ -1,0 +1,75 @@
+---
+
+- name: Backup ErsatzTV Application
+  hosts: all
+
+  vars_files:
+    - "../vars/shared.yml"
+
+  tasks:
+    - name: Get application-specific variables
+      ansible.builtin.include_vars: "{{ playbook_dir }}/vars/main.yml"
+
+    - name: Check if application directory exists
+      ansible.builtin.stat:
+        path: "{{ app_data_dir }}"
+      register: check
+
+    - name: Stop playbook since application directory doesn't exist
+      ansible.builtin.fail:
+        msg: Application data directory doesn't exist
+      when: not check.stat.exists | bool
+
+    - name: Get current date and time
+      ansible.builtin.set_fact:
+        now: '{{ lookup("pipe", "date +%F-%s") }}'
+      delegate_to: localhost
+      become: false
+      ignore_errors: true
+
+    - block:
+      - name: Create a temp backup directory
+        ansible.builtin.tempfile:
+          state: directory
+        register: tmp_backup_dir
+        check_mode: false
+
+      # TODO: Replace this with a proper location for backups
+      - name: Create backup storage directory
+        ansible.builtin.file:
+          path: "{{ backup_path }}/ersatztv/"
+          state: directory
+          mode: 0755
+        ignore_errors: true
+
+      # Currently the application doesn't do a whole lot. The attempt below is simply to do a backup of the application
+      # without having to stop the service. It will sync the application multiple times to make sure the temp backup
+      # directory has all of the necessary files.
+      - name: Sync the application directory to backup directory a few times
+        ansible.posix.synchronize:
+          src: "{{ app_data_dir }}/"
+          dest: "{{ tmp_backup_dir.path }}"
+        delegate_to: "{{ inventory_hostname }}"
+        loop: "{{ range(0, 3, 1) | list }}"
+
+      # This wasn't documented anywhere but it was found on discord where the developer stated that the search-index
+      # directory should not be included in the backup of the application. Its a list in order to make it easy to 
+      # remove any other directories in the future.
+      - name: Remove unecessary files within the temporary backup
+        ansible.builtin.file:
+          path: "{{ tmp_backup_dir.path }}/{{ item }}"
+          state: absent
+        loop:
+          - search-index
+
+      - name: Compress backup directory
+        community.general.archive:
+          path: "{{ tmp_backup_dir.path }}/*"
+          dest: "{{ backup_path | default('/tmp') }}/ersatztv/ersatztv-backup-{{ now | default('latest') }}.tar.gz"
+
+      always:
+        - name: Cleanup
+          ansible.builtin.file:
+            path: "{{ tmp_backup_dir.path }}"
+            state: absent
+          check_mode: false
