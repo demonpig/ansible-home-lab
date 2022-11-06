@@ -1,0 +1,4 @@
+---
+
+app_data_dir: "{{ config_path | default('.config') }}/ersatztv"
+

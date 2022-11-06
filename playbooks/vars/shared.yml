@@ -1,0 +1,8 @@
+---
+
+base_path: /home/abc
+
+config_path: "{{ base_path }}/.config"
+
+backup_path: "{{ base_path }}/backup"
+
