@@ -1,0 +1,80 @@
+---
+
+# convert-subtitle-with-subtitletools.yml
+
+# this playbook will only convert using the ASS subtitle extension. 
+
+- name: Use SubtitleTools API to convert to SRT subs
+  hosts: all
+  gather_facts: true
+
+  tasks:
+    - name: Gather external variables
+      ansible.builtin.set_fact:
+        _env_data_dir: "{{ lookup('env', 'ST_DATA_DIR') | default(omit, true) }}"
+        _var_data_dir: "{{ data_dir | default(omit, true) }}"
+        _pb_data_dir: "{{ playbook_dir }}/data"
+
+        _env_st_apikey: "{{ lookup('env', 'ST_API_KEY') | default(omit, true) }}"
+        _var_st_apikey:  "{{ api_key | default(omit, true) }}"
+
+    - name: Set playbook variables
+      ansible.builtin.set_fact:
+        # order of precedence
+        # use variable `data_dir` if provided
+        # use env variable `ST_DATA_DIR` if provided 
+        # default to using the playbook directory
+        _data_dir: "{{ _var_data_dir | default(_env_data_dir | default(_pb_data_dir)) }}"
+        
+        # order of precedence is same as above
+        # variable
+        # environment variable
+        # string called 'WRONG_KEY'
+        _apikey: "{{ _var_apikey | default(_env_st_apikey | default('WRONG_KEY')) }}"
+
+    - name: Make sure appropriate directories are created
+      loop:
+        - "{{ _data_dir }}/to-convert"
+        - "{{ _data_dir }}/downloads"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: 0755
+
+    - name: Get files to convert
+      register: files_to_convert
+      ansible.builtin.find:
+        path: "{{ _data_dir }}/to-convert"
+        file_type: file
+        depth: 1
+
+    - name: Post subtitle to SubtitleTools API
+      loop: "{{ files_to_convert.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+      register: posted_api_response
+      ansible.builtin.uri:
+        method: POST
+        url: https://subtitletools.com/api/v1/convert-to-srt
+        creates: "{{ _data_dir }}/{{ item.path | basename | replace('.ass', '.srt') }}"
+        return_content: true
+        body_format: form-multipart
+        body:
+          subtitle:
+            content: "{{ lookup('file', item.path) }}"
+            filename: "{{ item.path | basename }}"
+        headers:
+          Authorization: Bearer {{ _apikey }}
+
+    - name: Download converted file 
+      when: item.json.download_url is defined
+      loop: "{{ posted_api_response.results }}"
+      loop_control:
+        label: "{{ item.item.path | basename | replace('.ass', '.srt') }}"
+      ansible.builtin.uri:
+        method: GET
+        url: "{{ item.json.download_url }}"
+        dest: "{{ _data_dir }}/downloads/{{ item.item.path | basename | replace('.ass', '.srt') }}"
+        mode: 0644
+        headers:
+          Authorization: Bearer {{ _apikey }}
