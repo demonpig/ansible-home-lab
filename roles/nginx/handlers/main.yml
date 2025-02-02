@@ -1,0 +1,11 @@
+---
+
+- name: Verify NGINX Configuration
+  listen: start nginx
+  ansible.builtin.command: nginx -T
+
+- name: Restart NGINX Services
+  listen: start nginx
+  ansible.builtin.systemd:
+    name: nginx.service
+    state: restarted

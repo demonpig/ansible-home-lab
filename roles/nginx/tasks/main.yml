@@ -1,0 +1,38 @@
+---
+
+- name: Get distribution facts
+  ansible.builtin.setup:
+    gather_subset:
+      - '!all'
+      - '!min'
+      - distribution_release
+
+- name: Get shared role variables
+  ansible.builtin.include_vars:
+    file: ../vars/main.yml
+    hash_behaviour: replace
+
+- name: Create /var/www/letsencrypt directory
+  ansible.builtin.file:
+    path: /var/www/letsencrypt
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Install NGINX
+  become: true
+  notify: start nginx
+  ansible.builtin.package:
+    name: "{{ hostvars[inventory_hostname]['_{}_nginx_pkgs'.format(ansible_os_family | lower)] | default(['nginx']) }}"
+    state: present
+
+- name: Deploy /etc/nginx/nginx.conf file
+  become: true
+  notify: start nginx
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: '0644'

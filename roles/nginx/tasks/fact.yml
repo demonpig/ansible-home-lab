@@ -1,0 +1,6 @@
+---
+
+- name: fact | Create fact for storing nginx configs
+  ansible.builtin.set_fact:
+    nginx_user_http_config: []
+    cacheable: true
